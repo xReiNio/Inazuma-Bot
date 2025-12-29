@@ -14,10 +14,9 @@ import pygetwindow as gw
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # ==========================================
-#  [輔助] 資源路徑 (給 Icon 使用)
+#  [輔助] 資源路徑
 # ==========================================
 def resource_path(relative_path):
-    """ 取得資源絕對路徑 (Icon 專用) """
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -25,10 +24,11 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # ==========================================
-#  [視覺元件] 圓角框架
+#  [視覺元件] 圓角框架 (已修復消失問題)
 # ==========================================
 class RoundedFrame(tk.Canvas):
     def __init__(self, parent, width, height, radius=20, bg_color="#252526", border_color="#FFFFFF", border_width=2):
+        # 設定 Canvas 背景色與父層一致，避免圓角外出現白邊
         super().__init__(parent, width=width, height=height, bg=parent['bg'], highlightthickness=0, bd=0)
         self.radius = radius
         self.bg_color = bg_color
@@ -36,15 +36,21 @@ class RoundedFrame(tk.Canvas):
         self.border_width = border_width
         self.width = width
         self.height = height
-        self.draw()
+        
+        # 初始化繪製背景
+        self.draw_background()
 
-    def draw(self):
-        self.delete("all")
+    def draw_background(self):
+        # 這裡不使用 delete("all")，而是只繪製背景並給予標籤 "bg_shape"
+        self.delete("bg_shape") 
         offset = self.border_width / 2
         self.create_rounded_rect(
             offset, offset, self.width - offset, self.height - offset,
-            self.radius, fill=self.bg_color, outline=self.border_color, width=self.border_width
+            self.radius, fill=self.bg_color, outline=self.border_color, width=self.border_width,
+            tags="bg_shape" # 加上標籤
         )
+        # 確保背景在最底層
+        self.tag_lower("bg_shape")
 
     def create_rounded_rect(self, x1, y1, x2, y2, radius=25, **kwargs):
         points = [x1+radius, y1, x1+radius, y1, x2-radius, y1, x2-radius, y1, x2, y1, x2, y1+radius, x2, y1+radius, x2, y2-radius, x2, y2-radius, x2, y2, x2-radius, y2, x2-radius, y2, x1+radius, y2, x1+radius, y2, x1, y2, x1, y2-radius, x1, y2-radius, x1, y1+radius, x1, y1+radius, x1, y1]
@@ -53,13 +59,16 @@ class RoundedFrame(tk.Canvas):
     def add_widget(self, widget, x, y, anchor="center"):
         return self.create_window(x, y, window=widget, anchor=anchor)
 
-    def update_colors(self, bg_color, border_color):
+    def update_colors(self, bg_color, border_color, parent_bg):
         self.bg_color = bg_color
         self.border_color = border_color
-        self.draw()
+        self.config(bg=parent_bg) # 更新 Canvas 本身的背景色以融入父層
+        
+        # 只更新背景圖形的顏色，不刪除其他元件
+        self.itemconfig("bg_shape", fill=bg_color, outline=border_color)
 
 # ==========================================
-#  [視覺元件] 圓角按鈕 (修正版)
+#  [視覺元件] 圓角按鈕
 # ==========================================
 class RoundedButton(tk.Canvas):
     def __init__(self, parent, text, command=None, width=120, height=40, radius=20, 
@@ -131,13 +140,11 @@ class RoundedButton(tk.Canvas):
             self.unbind("<Leave>")
         self.draw()
     
-    # [修正] 這裡新增了 fg_color 參數來接收文字顏色變更
     def update_colors(self, bg_color, hover_color, parent_bg, border_color=None, fg_color=None):
         self.base_bg = bg_color
         self.hover_bg = hover_color
         self.border_color = border_color
-        if fg_color:
-            self.fg = fg_color
+        if fg_color: self.fg = fg_color
         self.config(bg=parent_bg) 
         self.draw()
 
@@ -441,9 +448,11 @@ class AutomationBotGUI:
         # === Tab 1: 主控制台 ===
         self.tab_main.config(bd=0, highlightthickness=0)
         
+        # [修改] 使用 RoundedFrame (修復後)
         self.card_info = RoundedFrame(self.tab_main, width=580, height=200, radius=15)
         self.card_info.pack(pady=(20, 10))
 
+        # === 時鐘 (放在卡片最上方) ===
         self.lbl_clock = tk.Label(self.tab_main, text="", font=("Consolas", 11), bg=self.card_info.bg_color)
         self.card_info.add_widget(self.lbl_clock, 290, 30)
         self.update_clock() 
@@ -457,6 +466,7 @@ class AutomationBotGUI:
         self.lbl_last_time = tk.Label(self.tab_main, text="上回耗時: -- 秒", font=("微軟正黑體", 13), bg=self.card_info.bg_color)
         self.card_info.add_widget(self.lbl_last_time, 290, 160)
 
+        # 控制卡片
         self.card_ctrl = RoundedFrame(self.tab_main, width=580, height=150, radius=15)
         self.card_ctrl.pack(pady=10)
 
@@ -468,17 +478,21 @@ class AutomationBotGUI:
                                     bg_color="#F44336", hover_color="#d32f2f", command=self.stop_bot, state="disabled")
         self.card_ctrl.add_widget(self.btn_stop, 290, 100)
 
+        # 說明區
         self.lbl_instruction = tk.Label(self.tab_main, text="[F9] 啟動機器人 / 新循環\n[F10] 暫停  |  [ESC] 停止", font=("微軟正黑體", 11), justify=tk.CENTER)
         self.lbl_instruction.pack(side=tk.BOTTOM, pady=40)
         
+        # 設定按鈕 (改成圓角按鈕)
         self.btn_help = RoundedButton(self.tab_main, text="⚙️ 圖片設定", width=100, height=30, radius=15,
                                       bg_color="#444444", hover_color="#555555", fg_color="white",
                                       command=lambda: self.check_missing_files(force_show=True))
         self.btn_help.place(relx=0.03, rely=0.97, anchor="sw")
 
+        # === 版本與作者資訊 (右下角) ===
         self.lbl_version = tk.Label(self.tab_main, text="v0.1 | 作者: Kartol", font=("微軟正黑體", 9))
         self.lbl_version.place(relx=0.97, rely=0.97, anchor="se")
 
+        # === Tab 2 & 3 ===
         self.log_area = scrolledtext.ScrolledText(self.tab_logs, width=70, height=25, font=("Consolas", 10), bd=0, highlightthickness=0)
         self.log_area.pack(expand=True, fill='both', padx=2, pady=2) 
         self.log_area.config(state='disabled') 
@@ -522,6 +536,7 @@ class AutomationBotGUI:
 
     def apply_theme(self):
         if self.is_dark_mode:
+            # 深色配色
             bg_color, fg_color = "#000000", "#FFFFFF"      
             card_bg = "#1A1A1A"
             card_border = "#FFFFFF" 
@@ -540,6 +555,7 @@ class AutomationBotGUI:
             btn_help_bg, btn_help_hover, btn_help_fg = "#444444", "#555555", "#FFFFFF"
             btn_help_border = "#FFFFFF"
         else:
+            # 淺色配色
             bg_color, fg_color = "#F0F0F0", "#000000"
             card_bg = "#FFFFFF"
             card_border = "#CCCCCC" 
@@ -562,7 +578,7 @@ class AutomationBotGUI:
         self.btn_start.update_colors(btn_start_bg, btn_start_hover, card_bg)
         self.btn_stop.update_colors(btn_stop_bg, btn_stop_hover, card_bg)
         
-        # [修正] 使用 update_colors 而不是 config
+        # 更新設定按鈕顏色和邊框
         self.btn_help.update_colors(btn_help_bg, btn_help_hover, bg_color, border_color=btn_help_border, fg_color=btn_help_fg)
 
         self.style.configure("TNotebook", background=bg_color, borderwidth=0)
@@ -578,8 +594,9 @@ class AutomationBotGUI:
         self.tab_logs.config(bg=bg_color)
         self.tab_stats.config(bg=bg_color)
         
-        self.card_info.update_colors(card_bg, card_border)
-        self.card_ctrl.update_colors(card_bg, card_border)
+        # [關鍵修正] 使用新的 update_colors 方法，傳入 parent_bg
+        self.card_info.update_colors(card_bg, card_border, bg_color)
+        self.card_ctrl.update_colors(card_bg, card_border, bg_color)
 
         for widget in [self.lbl_clock, self.lbl_status, self.lbl_count, self.lbl_last_time]:
             widget.config(bg=card_bg)
@@ -593,6 +610,7 @@ class AutomationBotGUI:
 
         self.lbl_instruction.config(bg=bg_color, fg=instr_fg)
         self.log_area.config(bg=text_bg, fg=text_fg, insertbackground=fg_color)
+        self.btn_help.config(bg=btn_help_bg) # 注意 Canvas 背景
 
     def switch_to_game(self):
         target_name = "INAZUMA ELEVEN"
