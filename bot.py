@@ -14,9 +14,10 @@ import pygetwindow as gw
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # ==========================================
-#  [輔助] 資源路徑 (給 PyInstaller 用)
+#  [輔助] 資源路徑 (給 Icon 使用)
 # ==========================================
 def resource_path(relative_path):
+    """ 取得資源絕對路徑 (Icon 專用) """
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -24,11 +25,46 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # ==========================================
-#  [視覺元件] 圓角按鈕
+#  [視覺元件] 圓角框架
+# ==========================================
+class RoundedFrame(tk.Canvas):
+    def __init__(self, parent, width, height, radius=20, bg_color="#252526", border_color="#FFFFFF", border_width=2):
+        super().__init__(parent, width=width, height=height, bg=parent['bg'], highlightthickness=0, bd=0)
+        self.radius = radius
+        self.bg_color = bg_color
+        self.border_color = border_color
+        self.border_width = border_width
+        self.width = width
+        self.height = height
+        self.draw()
+
+    def draw(self):
+        self.delete("all")
+        offset = self.border_width / 2
+        self.create_rounded_rect(
+            offset, offset, self.width - offset, self.height - offset,
+            self.radius, fill=self.bg_color, outline=self.border_color, width=self.border_width
+        )
+
+    def create_rounded_rect(self, x1, y1, x2, y2, radius=25, **kwargs):
+        points = [x1+radius, y1, x1+radius, y1, x2-radius, y1, x2-radius, y1, x2, y1, x2, y1+radius, x2, y1+radius, x2, y2-radius, x2, y2-radius, x2, y2, x2-radius, y2, x2-radius, y2, x1+radius, y2, x1+radius, y2, x1, y2, x1, y2-radius, x1, y2-radius, x1, y1+radius, x1, y1+radius, x1, y1]
+        return self.create_polygon(points, **kwargs, smooth=True)
+
+    def add_widget(self, widget, x, y, anchor="center"):
+        return self.create_window(x, y, window=widget, anchor=anchor)
+
+    def update_colors(self, bg_color, border_color):
+        self.bg_color = bg_color
+        self.border_color = border_color
+        self.draw()
+
+# ==========================================
+#  [視覺元件] 圓角按鈕 (修正版)
 # ==========================================
 class RoundedButton(tk.Canvas):
     def __init__(self, parent, text, command=None, width=120, height=40, radius=20, 
-                 bg_color="#4CAF50", fg_color="white", hover_color="#45a049", state="normal"):
+                 bg_color="#4CAF50", fg_color="white", hover_color="#45a049", state="normal",
+                 border_color=None, border_width=0):
         super().__init__(parent, width=width, height=height, bg=parent['bg'], highlightthickness=0, bd=0, cursor="hand2")
         self.command = command
         self.text = text
@@ -39,6 +75,8 @@ class RoundedButton(tk.Canvas):
         self.state = state
         self.width = width
         self.height = height
+        self.border_color = border_color
+        self.border_width = border_width
         
         if self.state == "normal":
             self.bind("<Button-1>", self.on_click)
@@ -55,8 +93,10 @@ class RoundedButton(tk.Canvas):
         else:
             fill_color = self.base_bg
             self.config(cursor="hand2")
-
-        self.create_rounded_rect(0, 0, self.width, self.height, self.radius, fill=fill_color, outline="")
+        
+        outline = self.border_color if self.border_color else ""
+        offset = self.border_width / 2 if self.border_color else 0
+        self.create_rounded_rect(offset, offset, self.width-offset, self.height-offset, self.radius, fill=fill_color, outline=outline, width=self.border_width)
         self.create_text(self.width/2, self.height/2, text=self.text, fill=self.fg, font=("微軟正黑體", 12, "bold"))
 
     def create_rounded_rect(self, x1, y1, x2, y2, radius=25, **kwargs):
@@ -70,7 +110,9 @@ class RoundedButton(tk.Canvas):
     def on_enter(self, event):
         if self.state == "normal":
             self.delete("all")
-            self.create_rounded_rect(0, 0, self.width, self.height, self.radius, fill=self.hover_bg, outline="")
+            outline = self.border_color if self.border_color else ""
+            offset = self.border_width / 2 if self.border_color else 0
+            self.create_rounded_rect(offset, offset, self.width-offset, self.height-offset, self.radius, fill=self.hover_bg, outline=outline, width=self.border_width)
             self.create_text(self.width/2, self.height/2, text=self.text, fill=self.fg, font=("微軟正黑體", 12, "bold"))
 
     def on_leave(self, event):
@@ -89,9 +131,13 @@ class RoundedButton(tk.Canvas):
             self.unbind("<Leave>")
         self.draw()
     
-    def update_colors(self, bg_color, hover_color, parent_bg):
+    # [修正] 這裡新增了 fg_color 參數來接收文字顏色變更
+    def update_colors(self, bg_color, hover_color, parent_bg, border_color=None, fg_color=None):
         self.base_bg = bg_color
         self.hover_bg = hover_color
+        self.border_color = border_color
+        if fg_color:
+            self.fg = fg_color
         self.config(bg=parent_bg) 
         self.draw()
 
@@ -335,7 +381,7 @@ class AutomationBotGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("閃十一編年史機器人 By Kartol")
-        self.root.geometry("650x620") 
+        self.root.geometry("650x650") 
         
         # === 設定 ICON ===
         icon_path = resource_path("app.ico")
@@ -359,11 +405,13 @@ class AutomationBotGUI:
 
         if getattr(sys, 'frozen', False):
             self.base_path = os.path.dirname(sys.executable)
+            self.internal_path = sys._MEIPASS              
         else:
             self.base_path = os.path.dirname(__file__)
-        
+            self.internal_path = self.base_path
+
         self.steps_folder = os.path.join(self.base_path, "steps")
-        self.templates_folder = os.path.join(self.base_path, "templates")
+        self.templates_folder = os.path.join(self.internal_path, "templates")
         
         if not os.path.exists(self.steps_folder): os.makedirs(self.steps_folder)
         
@@ -393,46 +441,44 @@ class AutomationBotGUI:
         # === Tab 1: 主控制台 ===
         self.tab_main.config(bd=0, highlightthickness=0)
         
-        self.card_info = tk.Frame(self.tab_main, bd=0, highlightthickness=0)
-        self.card_info.pack(fill='x', padx=25, pady=(20, 10), ipady=15) 
+        self.card_info = RoundedFrame(self.tab_main, width=580, height=200, radius=15)
+        self.card_info.pack(pady=(20, 10))
 
-        # === [新增] 時鐘 (放在卡片最上方) ===
-        self.lbl_clock = tk.Label(self.card_info, text="", font=("Consolas", 11))
-        self.lbl_clock.pack(pady=(5, 5))
-        self.update_clock() # 啟動時鐘
+        self.lbl_clock = tk.Label(self.tab_main, text="", font=("Consolas", 11), bg=self.card_info.bg_color)
+        self.card_info.add_widget(self.lbl_clock, 290, 30)
+        self.update_clock() 
 
-        self.lbl_status = tk.Label(self.card_info, text="狀態: 就緒", font=("微軟正黑體", 18, "bold"))
-        self.lbl_status.pack(pady=5)
-        self.lbl_count = tk.Label(self.card_info, text="已完成循環: 0 次", font=("微軟正黑體", 15, "bold"))
-        self.lbl_count.pack(pady=5)
-        self.lbl_last_time = tk.Label(self.card_info, text="上回耗時: -- 秒", font=("微軟正黑體", 13))
-        self.lbl_last_time.pack(pady=5)
-
-        self.card_ctrl = tk.Frame(self.tab_main, bd=0, highlightthickness=0)
-        self.card_ctrl.pack(fill='x', padx=25, pady=10, ipady=20)
-
-        self.btn_start = RoundedButton(self.card_ctrl, text="開始執行", width=180, height=50, radius=25, 
-                                     bg_color="#4CAF50", hover_color="#45a049", command=self.start_bot)
-        self.btn_start.pack(pady=10)
+        self.lbl_status = tk.Label(self.tab_main, text="狀態: 就緒", font=("微軟正黑體", 18, "bold"), bg=self.card_info.bg_color)
+        self.card_info.add_widget(self.lbl_status, 290, 80)
         
-        self.btn_stop = RoundedButton(self.card_ctrl, text="停止執行", width=180, height=50, radius=25, 
-                                    bg_color="#F44336", hover_color="#d32f2f", command=self.stop_bot, state="disabled")
-        self.btn_stop.pack(pady=10)
+        self.lbl_count = tk.Label(self.tab_main, text="已完成循環: 0 次", font=("微軟正黑體", 15, "bold"), bg=self.card_info.bg_color)
+        self.card_info.add_widget(self.lbl_count, 290, 120)
+        
+        self.lbl_last_time = tk.Label(self.tab_main, text="上回耗時: -- 秒", font=("微軟正黑體", 13), bg=self.card_info.bg_color)
+        self.card_info.add_widget(self.lbl_last_time, 290, 160)
 
-        # 說明區
+        self.card_ctrl = RoundedFrame(self.tab_main, width=580, height=150, radius=15)
+        self.card_ctrl.pack(pady=10)
+
+        self.btn_start = RoundedButton(self.tab_main, text="開始執行", width=180, height=50, radius=25, 
+                                     bg_color="#4CAF50", hover_color="#45a049", command=self.start_bot)
+        self.card_ctrl.add_widget(self.btn_start, 290, 40)
+        
+        self.btn_stop = RoundedButton(self.tab_main, text="停止執行", width=180, height=50, radius=25, 
+                                    bg_color="#F44336", hover_color="#d32f2f", command=self.stop_bot, state="disabled")
+        self.card_ctrl.add_widget(self.btn_stop, 290, 100)
+
         self.lbl_instruction = tk.Label(self.tab_main, text="[F9] 啟動機器人 / 新循環\n[F10] 暫停  |  [ESC] 停止", font=("微軟正黑體", 11), justify=tk.CENTER)
         self.lbl_instruction.pack(side=tk.BOTTOM, pady=40)
         
-        # 設定按鈕
-        self.btn_help = tk.Button(self.tab_main, text="⚙️ 圖片設定", font=("微軟正黑體", 9), bd=0, 
-                                  command=lambda: self.check_missing_files(force_show=True), cursor="hand2")
+        self.btn_help = RoundedButton(self.tab_main, text="⚙️ 圖片設定", width=100, height=30, radius=15,
+                                      bg_color="#444444", hover_color="#555555", fg_color="white",
+                                      command=lambda: self.check_missing_files(force_show=True))
         self.btn_help.place(relx=0.03, rely=0.97, anchor="sw")
 
-        # === [新增] 版本與作者資訊 (右下角) ===
         self.lbl_version = tk.Label(self.tab_main, text="v0.1 | 作者: Kartol", font=("微軟正黑體", 9))
         self.lbl_version.place(relx=0.97, rely=0.97, anchor="se")
 
-        # === Tab 2 & 3 ===
         self.log_area = scrolledtext.ScrolledText(self.tab_logs, width=70, height=25, font=("Consolas", 10), bd=0, highlightthickness=0)
         self.log_area.pack(expand=True, fill='both', padx=2, pady=2) 
         self.log_area.config(state='disabled') 
@@ -452,7 +498,6 @@ class AutomationBotGUI:
         self.apply_theme()
 
     def update_clock(self):
-        """ 更新時鐘顯示 """
         now = time.strftime("%Y/%m/%d\n%H:%M:%S")
         self.lbl_clock.config(text=now)
         self.root.after(1000, self.update_clock)
@@ -477,15 +522,13 @@ class AutomationBotGUI:
 
     def apply_theme(self):
         if self.is_dark_mode:
-            # 深色配色
             bg_color, fg_color = "#000000", "#FFFFFF"      
             card_bg = "#1A1A1A"
+            card_border = "#FFFFFF" 
             text_bg, text_fg = "#111111", "#E0E0E0"       
             count_fg, time_fg, instr_fg = "#4FC3F7", "#FFB74D", "#81D4FA"
-            
-            # === [新增] 時鐘與版本配色 (深色) ===
-            clock_fg = "#AAAAAA" # 時鐘顏色
-            version_fg = "#666666" # 版本號顏色
+            clock_fg = "#AAAAAA"
+            version_fg = "#666666"
             
             tab_bg, tab_fg = "#1A1A1A", "#808080"
             tab_sel_bg, tab_sel_fg = "#000000", "#4FC3F7"
@@ -493,15 +536,15 @@ class AutomationBotGUI:
             head_bg, head_fg = "#1A1A1A", "#FFFFFF"
             btn_start_bg, btn_start_hover = "#388E3C", "#2E7D32"
             btn_stop_bg, btn_stop_hover = "#D32F2F", "#C62828"
-            btn_help_bg = card_bg
+            
+            btn_help_bg, btn_help_hover, btn_help_fg = "#444444", "#555555", "#FFFFFF"
+            btn_help_border = "#FFFFFF"
         else:
-            # 淺色配色
             bg_color, fg_color = "#F0F0F0", "#000000"
             card_bg = "#FFFFFF"
+            card_border = "#CCCCCC" 
             text_bg, text_fg = "#FFFFFF", "#000000"
             count_fg, time_fg, instr_fg = "#007ACC", "#E65100", "blue"
-            
-            # === [新增] 時鐘與版本配色 (淺色) ===
             clock_fg = "#555555"
             version_fg = "#888888"
 
@@ -511,11 +554,16 @@ class AutomationBotGUI:
             head_bg, head_fg = "#E0E0E0", "#000000"
             btn_start_bg, btn_start_hover = "#4CAF50", "#45a049"
             btn_stop_bg, btn_stop_hover = "#F44336", "#d32f2f"
-            btn_help_bg = "#E0E0E0"
+            
+            btn_help_bg, btn_help_hover, btn_help_fg = "#E0E0E0", "#D0D0D0", "#000000"
+            btn_help_border = "#AAAAAA"
 
         self.toggle_switch.update_bg(bg_color)
         self.btn_start.update_colors(btn_start_bg, btn_start_hover, card_bg)
         self.btn_stop.update_colors(btn_stop_bg, btn_stop_hover, card_bg)
+        
+        # [修正] 使用 update_colors 而不是 config
+        self.btn_help.update_colors(btn_help_bg, btn_help_hover, bg_color, border_color=btn_help_border, fg_color=btn_help_fg)
 
         self.style.configure("TNotebook", background=bg_color, borderwidth=0)
         self.style.configure("TNotebook.Tab", background=tab_bg, foreground=tab_fg, padding=[12, 8], font=("微軟正黑體", 10), borderwidth=0)
@@ -530,21 +578,21 @@ class AutomationBotGUI:
         self.tab_logs.config(bg=bg_color)
         self.tab_stats.config(bg=bg_color)
         
-        self.card_info.config(bg=card_bg)
-        self.card_ctrl.config(bg=card_bg)
+        self.card_info.update_colors(card_bg, card_border)
+        self.card_ctrl.update_colors(card_bg, card_border)
 
-        self.lbl_status.config(bg=card_bg, fg=fg_color if self.is_dark_mode else "#333333")
-        self.lbl_count.config(bg=card_bg, fg=count_fg)
-        self.lbl_last_time.config(bg=card_bg, fg=time_fg)
+        for widget in [self.lbl_clock, self.lbl_status, self.lbl_count, self.lbl_last_time]:
+            widget.config(bg=card_bg)
+
+        self.lbl_status.config(fg=fg_color if self.is_dark_mode else "#333333")
+        self.lbl_count.config(fg=count_fg)
+        self.lbl_last_time.config(fg=time_fg)
         
-        # === [新增] 更新時鐘與版本號顏色 ===
-        self.lbl_clock.config(bg=card_bg, fg=clock_fg)
+        self.lbl_clock.config(fg=clock_fg)
         self.lbl_version.config(bg=bg_color, fg=version_fg)
-        # ===============================
 
         self.lbl_instruction.config(bg=bg_color, fg=instr_fg)
         self.log_area.config(bg=text_bg, fg=text_fg, insertbackground=fg_color)
-        self.btn_help.config(bg=btn_help_bg, fg=fg_color)
 
     def switch_to_game(self):
         target_name = "INAZUMA ELEVEN"
