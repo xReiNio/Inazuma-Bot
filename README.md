@@ -20,7 +20,7 @@
 ## 🛠️ 安裝與使用
 
 ### 方法一：直接執行 (推薦)
-前往 [Releases 頁面]([這裡貼上你之後發布exe的網址](https://github.com/xReiNio/Inazuma-Bot/releases/tag/v0.1)) 下載最新的 `.exe` 檔案，解壓縮後直接執行即可，無需安裝 Python。
+前往 [Releases 頁面](https://github.com/xReiNio/Inazuma-Bot/releases/tag/v0.1) 下載最新的 `.exe` 檔案，解壓縮後直接執行即可，無需安裝 Python。
 
 ### 方法二：原始碼執行
 如果你想自行修改代碼：
@@ -54,3 +54,4 @@
 ```bash
 
 pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-all tkinterdnd2 --add-data "app.ico;." bot.py
+
