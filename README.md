@@ -27,7 +27,7 @@
 
 1.  克隆此專案：
     ```bash
-    git clone [https://github.com/你的帳號/Inazuma-Chronicle-Bot.git](https://github.com/你的帳號/Inazuma-Chronicle-Bot.git)
+    git clone [https://github.com/xReiNio/Inazumae-Bot.git](https://github.com/xReiNio/Inazuma-Bot.git)
     ```
 2.  安裝依賴套件：
     ```bash
@@ -54,4 +54,5 @@
 ```bash
 
 pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-all tkinterdnd2 --add-data "app.ico;." bot.py
+
 
