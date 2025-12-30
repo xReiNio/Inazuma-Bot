@@ -1,9 +1,8 @@
-```markdown
-# ⚡ Inazuma Bot (閃十一編年史機器人)
+# ⚡ Inazuma Chronicle Bot (閃十一編年史機器人)
 
 這是一個為《閃電十一人編年史》設計的自動化掛機機器人，具備現代化的深色介面、智慧設定精靈與防呆機制。
 
-![Version](https://img.shields.io/badge/version-v0.1.2-blue)
+![Version](https://img.shields.io/badge/version-v0.1.4-blue)
 ![Python](https://img.shields.io/badge/python-3.x-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 
@@ -39,67 +38,3 @@
 1. 克隆此專案：
    ```bash
    git clone [https://github.com/xReiNio/Inazuma-Bot.git](https://github.com/xReiNio/Inazuma-Bot.git)
-
-```
-
-2. 安裝依賴套件：
-```bash
-pip install -r requirements.txt
-
-```
-
-
-3. 執行程式：
-```bash
-python bot.py
-
-```
-
-
-
----
-
-## 🎮 使用說明
-
-### 1. 初次設定
-
-第一次開啟時，程式會偵測缺少圖片並跳出「設定精靈」：
-
-1. 在左側列表點選要設定的項目（如：`Picture1.png`）。
-2. 在遊戲中截圖對應的按鈕（參考右側範例圖）。
-3. 回到程式，直接按下 **`Ctrl+V`** 貼上，或是將圖片檔拖入下方框框。
-4. 全部設定完成後，點擊「設定完成」。
-
-### 2. 熱鍵操作
-
-* **`F9`**：啟動機器人 / 開始新循環 (全域熱鍵)
-* **`F10`**：暫停 / 繼續
-* **`ESC`**：強制停止程式
-
----
-
-## 📦 自行打包 (Build from Source)
-
-若要自行將 `.py` 打包成單一 `.exe` 檔，請使用以下指令（需安裝 PyInstaller）：
-
-```bash
-pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-all tkinterdnd2 --add-data "app.ico;." --add-data "templates;templates" bot.py
-
-```
-
----
-
-## 👤 作者
-
-**Kartol**
-
-```
-
-### 更新重點摘要：
-1.  **版本號更新**：Badge 改成了 `v0.1.2`。
-2.  **新增功能**：在「智慧設定精靈」區塊加入了 **"支援剪貼簿貼上"** 的說明。
-3.  **移除舊說明**：移除了「請複製 templates 資料夾」的步驟，因為現在已經是單檔執行了。
-4.  **打包指令更新**：換成了包含 `--add-data "templates;templates"` 的最新指令。
-
-
-```
