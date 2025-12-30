@@ -9,7 +9,7 @@ import sys
 import keyboard
 import subprocess
 import ctypes 
-from PIL import Image, ImageTk 
+from PIL import Image, ImageTk, ImageGrab # === [新增] ImageGrab 用來抓剪貼簿
 import pygetwindow as gw 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
@@ -24,11 +24,10 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # ==========================================
-#  [視覺元件] 圓角框架 (已修復消失問題)
+#  [視覺元件] 圓角框架
 # ==========================================
 class RoundedFrame(tk.Canvas):
     def __init__(self, parent, width, height, radius=20, bg_color="#252526", border_color="#FFFFFF", border_width=2):
-        # 設定 Canvas 背景色與父層一致，避免圓角外出現白邊
         super().__init__(parent, width=width, height=height, bg=parent['bg'], highlightthickness=0, bd=0)
         self.radius = radius
         self.bg_color = bg_color
@@ -36,20 +35,16 @@ class RoundedFrame(tk.Canvas):
         self.border_width = border_width
         self.width = width
         self.height = height
-        
-        # 初始化繪製背景
         self.draw_background()
 
     def draw_background(self):
-        # 這裡不使用 delete("all")，而是只繪製背景並給予標籤 "bg_shape"
         self.delete("bg_shape") 
         offset = self.border_width / 2
         self.create_rounded_rect(
             offset, offset, self.width - offset, self.height - offset,
             self.radius, fill=self.bg_color, outline=self.border_color, width=self.border_width,
-            tags="bg_shape" # 加上標籤
+            tags="bg_shape"
         )
-        # 確保背景在最底層
         self.tag_lower("bg_shape")
 
     def create_rounded_rect(self, x1, y1, x2, y2, radius=25, **kwargs):
@@ -62,9 +57,7 @@ class RoundedFrame(tk.Canvas):
     def update_colors(self, bg_color, border_color, parent_bg):
         self.bg_color = bg_color
         self.border_color = border_color
-        self.config(bg=parent_bg) # 更新 Canvas 本身的背景色以融入父層
-        
-        # 只更新背景圖形的顏色，不刪除其他元件
+        self.config(bg=parent_bg)
         self.itemconfig("bg_shape", fill=bg_color, outline=border_color)
 
 # ==========================================
@@ -91,7 +84,6 @@ class RoundedButton(tk.Canvas):
             self.bind("<Button-1>", self.on_click)
             self.bind("<Enter>", self.on_enter)
             self.bind("<Leave>", self.on_leave)
-        
         self.draw()
 
     def draw(self):
@@ -202,7 +194,7 @@ class SetupWizard(tk.Toplevel):
     def __init__(self, parent, steps_folder, examples_folder, missing_files, is_dark=False):
         super().__init__(parent)
         self.title("初次設定指引")
-        self.geometry("800x600") 
+        self.geometry("800x650") # 加高一點放按鈕
         self.steps_folder = steps_folder       
         self.examples_folder = examples_folder 
         self.missing_files = missing_files
@@ -225,6 +217,7 @@ class SetupWizard(tk.Toplevel):
             "Picture8.png": "開球",
         }
 
+        # 定義顏色
         if self.is_dark:
             self.bg_color = "#121212"
             self.fg_color = "#FFFFFF"
@@ -244,6 +237,9 @@ class SetupWizard(tk.Toplevel):
 
         self.config(bg=self.bg_color)
         self.create_widgets()
+        
+        # 綁定貼上快捷鍵
+        self.bind('<Control-v>', self.paste_from_clipboard)
         
         self.update_idletasks()
         width = self.winfo_width()
@@ -280,16 +276,22 @@ class SetupWizard(tk.Toplevel):
         scrollbar.config(command=self.listbox.yview)
         self.listbox.bind('<<ListboxSelect>>', self.on_select)
 
-        self.drop_frame = tk.LabelFrame(left_panel, text="2. 拖曳圖片到這裡", font=("微軟正黑體", 12, "bold"), 
-                                        fg=self.fg_color, bg=self.bg_color, height=150)
+        # 2. 拖放區 + 貼上按鈕
+        self.drop_frame = tk.LabelFrame(left_panel, text="2. 拖曳或貼上圖片", font=("微軟正黑體", 12, "bold"), 
+                                        fg=self.fg_color, bg=self.bg_color, height=180)
         self.drop_frame.pack(fill=tk.X, pady=(10, 0))
         self.drop_frame.pack_propagate(False)
         
         self.drop_label = tk.Label(self.drop_frame, text="請先從上方選擇項目", font=("微軟正黑體", 12), 
                                    fg=self.drop_fg, bg=self.drop_bg)
-        self.drop_label.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
+        self.drop_label.pack(expand=True, fill=tk.BOTH, padx=5, pady=(5, 0))
         self.drop_label.drop_target_register(DND_FILES)
         self.drop_label.dnd_bind('<<Drop>>', self.on_drop)
+
+        # [新增] 貼上按鈕
+        self.btn_paste = tk.Button(self.drop_frame, text="📋 貼上剪貼簿 (Ctrl+V)", font=("微軟正黑體", 10),
+                                   bg=self.list_bg, fg=self.fg_color, bd=1, command=self.paste_from_clipboard)
+        self.btn_paste.pack(fill=tk.X, padx=10, pady=5)
 
         right_panel = tk.LabelFrame(main_content, text="範例參考 (Reference)", font=("微軟正黑體", 10, "bold"), 
                                     padx=10, pady=10, bg=self.bg_color, fg=self.fg_color)
@@ -334,7 +336,8 @@ class SetupWizard(tk.Toplevel):
             self.drop_frame.config(text=f"設定: {self.selected_file}", fg=self.accent_color)
             target_bg = "#2D2D30" if self.is_dark else "#E3F2FD"
             target_fg = "#FFFFFF" if self.is_dark else "black"
-            self.drop_label.config(text=f"請將【{self.selected_file}】的截圖拖曳至此\n(自動轉檔命名)", fg=target_fg, bg=target_bg)
+            self.drop_label.config(text=f"請將【{self.selected_file}】的截圖拖曳至此\n或按 Ctrl+V 貼上", fg=target_fg, bg=target_bg)
+            self.btn_paste.config(state="normal", bg=self.accent_color, fg="white")
             
             example_path = os.path.join(self.examples_folder, self.selected_file)
             if os.path.exists(example_path):
@@ -347,6 +350,8 @@ class SetupWizard(tk.Toplevel):
                     self.preview_label.config(image="", text="[範例圖片損毀]")
             else:
                 self.preview_label.config(image="", text="[無範例圖片]\n開發者未提供此步驟的範例")
+        else:
+            self.btn_paste.config(state="disabled")
 
     def on_drop(self, event):
         if not self.selected_file:
@@ -356,21 +361,44 @@ class SetupWizard(tk.Toplevel):
         if file_path.startswith('{') and file_path.endswith('}'): file_path = file_path[1:-1]
         try:
             img = Image.open(file_path)
-            target_path = os.path.join(self.steps_folder, self.selected_file)
-            img.save(target_path, "PNG")
-            
-            success_bg = "#1B5E20" if self.is_dark else "#C8E6C9"
-            self.drop_label.config(text=f"✅ {self.selected_file} 設定成功！", bg=success_bg)
-            self.refresh_list()
-            self.after(1500, lambda: self.reset_drop_zone())
+            self.save_image(img)
         except Exception as e:
             messagebox.showerror("錯誤", f"圖片處理失敗：\n{e}")
+
+    # === [新增] 貼上剪貼簿功能 ===
+    def paste_from_clipboard(self, event=None):
+        if not self.selected_file:
+            messagebox.showwarning("提示", "請先在左側列表點選你要設定哪一張圖片！")
+            return
+        
+        try:
+            img = ImageGrab.grabclipboard()
+            if isinstance(img, Image.Image):
+                self.save_image(img)
+            else:
+                messagebox.showerror("錯誤", "剪貼簿內沒有圖片！\n請先截圖或複製圖片後再試一次。")
+        except Exception as e:
+            messagebox.showerror("錯誤", f"貼上失敗：\n{e}")
+
+    def save_image(self, img):
+        target_path = os.path.join(self.steps_folder, self.selected_file)
+        img.save(target_path, "PNG")
+        
+        success_bg = "#1B5E20" if self.is_dark else "#C8E6C9"
+        self.drop_label.config(text=f"✅ {self.selected_file} 設定成功！", bg=success_bg)
+        self.refresh_list()
+        # 保持選取狀態
+        for i, f in enumerate(self.all_files):
+            if f == self.selected_file:
+                self.listbox.select_set(i)
+                break
+        self.after(1500, lambda: self.reset_drop_zone())
 
     def reset_drop_zone(self):
         if self.selected_file:
              target_bg = "#2D2D30" if self.is_dark else "#E3F2FD"
              target_fg = "#FFFFFF" if self.is_dark else "black"
-             self.drop_label.config(text=f"請將【{self.selected_file}】的截圖拖曳至此", bg=target_bg, fg=target_fg)
+             self.drop_label.config(text=f"請將【{self.selected_file}】的截圖拖曳至此\n或按 Ctrl+V 貼上", bg=target_bg, fg=target_fg)
         else:
              self.drop_label.config(text="請先從上方選擇項目", bg=self.drop_bg, fg=self.drop_fg)
 
@@ -448,7 +476,6 @@ class AutomationBotGUI:
         # === Tab 1: 主控制台 ===
         self.tab_main.config(bd=0, highlightthickness=0)
         
-        # [修改] 使用 RoundedFrame (修復後)
         self.card_info = RoundedFrame(self.tab_main, width=580, height=200, radius=15)
         self.card_info.pack(pady=(20, 10))
 
@@ -489,7 +516,7 @@ class AutomationBotGUI:
         self.btn_help.place(relx=0.03, rely=0.97, anchor="sw")
 
         # === 版本與作者資訊 (右下角) ===
-        self.lbl_version = tk.Label(self.tab_main, text="v0.1 | 作者: Kartol", font=("微軟正黑體", 9))
+        self.lbl_version = tk.Label(self.tab_main, text="v0.1.2 | 作者: Kartol", font=("微軟正黑體", 9))
         self.lbl_version.place(relx=0.97, rely=0.97, anchor="se")
 
         # === Tab 2 & 3 ===
@@ -594,7 +621,7 @@ class AutomationBotGUI:
         self.tab_logs.config(bg=bg_color)
         self.tab_stats.config(bg=bg_color)
         
-        # [關鍵修正] 使用新的 update_colors 方法，傳入 parent_bg
+        # 更新圓角框架顏色
         self.card_info.update_colors(card_bg, card_border, bg_color)
         self.card_ctrl.update_colors(card_bg, card_border, bg_color)
 
