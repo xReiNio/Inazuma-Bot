@@ -1,9 +1,3 @@
-沒錯！既然你的程式已經進化到 **v0.1.2**，而且多了「貼上圖片」和「單檔執行」這麼重大的功能，**`README.md` 一定要更新**，這樣使用者才知道可以用 `Ctrl+V` 來設定，也不會疑惑為什麼不用下載 templates 資料夾了。
-
-我幫你重新寫了一份完整的 `README.md`，涵蓋了最新的 **剪貼簿功能**、**單檔架構** 以及 **深色介面**。
-
-你可以直接複製下面的內容，覆蓋掉 GitHub 上原本的 `README.md`：
-
 ```markdown
 # ⚡ Inazuma Bot (閃十一編年史機器人)
 
@@ -106,5 +100,6 @@ pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-a
 2.  **新增功能**：在「智慧設定精靈」區塊加入了 **"支援剪貼簿貼上"** 的說明。
 3.  **移除舊說明**：移除了「請複製 templates 資料夾」的步驟，因為現在已經是單檔執行了。
 4.  **打包指令更新**：換成了包含 `--add-data "templates;templates"` 的最新指令。
+
 
 ```
