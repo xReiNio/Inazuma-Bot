@@ -30,6 +30,20 @@ Designed with a sleek dark UI, ease of use, and stability in mind.
 
 ---
 
+## ⚠️ Important Requirements
+
+Before running the bot, please ensure the following:
+
+* **🖥️ Game Resolution**:
+    It is recommended to set the game resolution to **1600x900**.
+    *Otherwise, the bot may fail to detect images and steps might not execute.*
+
+* **📂 Folder Path**:
+    The folder path where you place this program **cannot contain Chinese characters**.
+    *Please place the bot in a purely English path (e.g., `C:\Games\InazumaBot`), otherwise it may not work properly.*
+
+---
+
 ## 📥 Installation
 
 ### Method 1: Pre-built EXE (Recommended)
@@ -78,5 +92,6 @@ pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-a
 ```
 👤 Author
 Kartol (@xReiNio)
+
 
 
