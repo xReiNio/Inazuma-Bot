@@ -1,4 +1,4 @@
-# ⚡ Inazuma Chronicle Bot
+# ⚡ Inazuma Bot
 
 A modern, automated farming bot for **Inazuma Eleven: Victory Road (Chronicle Mode)**.  
 Designed with a sleek dark UI, ease of use, and stability in mind.
@@ -78,3 +78,4 @@ pyinstaller --noconsole --onefile --icon=app.ico --name="InazumaBot" --collect-a
 ```
 👤 Author
 Kartol (@xReiNio)
+
